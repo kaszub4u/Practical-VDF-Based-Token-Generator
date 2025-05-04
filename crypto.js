@@ -45,13 +45,13 @@ class UnityWallet extends EventEmitter {
   async genToken(pubKey, value) {
     const timestamp = Date.now();
     const input = pubKey.toString(16) + value.toString(16) + timestamp.toString(16);
-    const x = await this.ntru.sha256n(input);
+    let x = await this.ntru.sha256n(input);
 
     let proof = 0n;
     for (let i = 0n; i < value; i++) {
-      const xi = await this.ntru.sha256n(x + i);
-      const inv = this.ntru.modInv(xi, this.p);
-      proof += xi * inv;
+      x = await this.ntru.sha256n(x);
+      const inv = this.ntru.modInv(x, this.p);
+      proof += x * inv;
     }
 
     return {
@@ -61,6 +61,21 @@ class UnityWallet extends EventEmitter {
       proof,
       transactions: []
     };
+    
+  }
+
+  async verifyToken(token) {
+    const input = token.pubKey.toString(16) + token.value.toString(16) + token.timestamp.toString(16);
+    let x = await this.ntru.sha256n(input);
+
+    const r = BigInt(this.ntru.randr(0, Number(token.value - 1n)));
+    for (let i = 0n; i <= r; i++) {
+      x = await this.ntru.sha256n(x);
+    }
+
+    const partial = x * this.ntru.modInv(x, this.p);
+    return (token.proof % this.p === token.value) &&
+           ((token.proof - partial) % this.p === token.value - 1n);
   }
 
   async getDepthByTxId(token, txId) {
@@ -146,18 +161,8 @@ class UnityWallet extends EventEmitter {
     const leaves = [...toSet].filter(to => !fromSet.has(to));
     return leaves.length ? leaves.map(s => BigInt(s)) : [token.pubKey];
   }
-
-  async verifyToken(token) {
-    const input = token.pubKey.toString(16) + token.value.toString(16) + token.timestamp.toString(16);
-    const x = await this.ntru.sha256n(input);
-    const r = BigInt(this.ntru.randr(0, Number(token.value)));
-    const xi = await this.ntru.sha256n(x + r);
-    const inv = this.ntru.modInv(xi, this.p);
-    const partial = xi * inv;
-
-    return (token.proof % this.p === token.value) && ((token.proof - partial) % this.p === token.value - 1n);
-  }
 }
+
 
 const p = 2n**256n - 189n;
 const q = 2n**1279n - 1n;
