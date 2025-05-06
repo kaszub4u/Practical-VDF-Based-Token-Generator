@@ -1,5 +1,3 @@
-UnityWallet: Sequential VDF-Based Token with Lightweight Verification
-
 # 🔐 UnityWallet — Cryptographic Token Wallet with NTRU & Pietrzak VDF
 
 **UnityWallet** is a JavaScript-based cryptographic token system that includes:
